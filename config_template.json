@@ -1,5 +1,29 @@
 {
-    "gameUpdatesChannelId": "",
-    "announcementsChannelId": "",
-    "afkChannelId": ""
+    "isModuleEnabled": true,
+    "casinoChannelId": "",
+    "afkChannelId": "",
+    "commands": {
+        "admin/generateVoucher.js": false,
+        "admin/modifyPoints.js": false,
+        "games/stock/buystock.js": false,
+        "games/stock/portfolio.js": false,
+        "games/stock/sellstock.js": false,
+        "games/stock/stockprice.js": false,
+        "games/stock/viewportfolio.js": false,
+        "games/blackjack.js": false,
+        "games/coinflip.js": false,
+        "roles/roles.js": false,
+        "leaderboard.js": false,
+        "pay.js": false,
+        "points.js": false,
+        "redeem.js": false,
+        "viewPoints.js": false
+    },
+    "events": {
+        "addUserPoints.js": false,
+        "checkUserRank.js": false
+    },
+    "jobs": {
+        "addDailyPoints.js": false
+    }
 }
