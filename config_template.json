@@ -21,9 +21,11 @@
     },
     "events": {
         "addUserPoints.js": false,
-        "checkUserRank.js": false
+        "checkUserRank.js": false,
+        "checkRolesExists.js": false
     },
     "jobs": {
-        "addDailyPoints.js": false
+        "addDailyPoints.js": false,
+        "syncUsersPoints.js": false
     }
 }

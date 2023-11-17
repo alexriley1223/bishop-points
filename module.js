@@ -10,12 +10,8 @@ module.exports = (client) => {
 		enabled: isModuleEnabled,
 		author: package.author,
 		directory: __dirname,
-		init: function() {
-            /* Role(s) exists check */
-            if(events['checkUserRank.js']) {
-                /* Loop all and verify with client */
-                // const roles = client
-            }
+		init: async function(client) {
+
 		},
 	});
 };

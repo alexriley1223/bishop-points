@@ -1,7 +1,8 @@
 {
-    "ranks": [
-      { "tier": 1, "id": 12345, "amount": 1 },
-      { "tier": 2, "id": 12345, "amount": 375 }
+    "useRoles": true,
+    "roles": [
+      { "tier": 1, "id": "12345", "amount": 1 },
+      { "tier": 2, "id": "12345", "amount": 375 }
     ]
   }
   

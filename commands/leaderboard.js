@@ -1,34 +1,46 @@
-const { SlashCommandBuilder } = require("@discordjs/builders");
-const { MessageEmbed } = require("discord.js");
-const { color, name } = require("@config/bot.json");
-const Sequelize = require("sequelize");
-const sequelize = require("@database/database.js")(Sequelize);
-const Points = require("@models/userPoints.js")(sequelize, Sequelize.DataTypes);
+const BishopCommand = require('@classes/BishopCommand');
+const { SlashCommandBuilder } = require('@discordjs/builders');
+const { getParentDirectoryString } = require('@helpers/utils');
+const { commands } = require('../config.json');
+const { EmbedBuilder, Embed } = require('discord.js');
 
-module.exports = {
-  data: new SlashCommandBuilder().setName("leaderboard").setDescription("List points leaderboard"),
-  execute(interaction) {
-    /* Generate embed message for leaderboard */
-    const currentGame = new MessageEmbed()
-      .setColor(color)
-      .setTitle(`${name} Points Leaderboard`)
-      .setDescription(`Current leaderboard of points for the ${name} Discord.`)
-      .setTimestamp()
-      .setFooter(`Pulled using the ${name} Bot`);
+module.exports = new BishopCommand({
+	enabled: commands[getParentDirectoryString(__filename, __dirname)],
+	data: new SlashCommandBuilder()
+		.setName('leaderboard')
+		.setDescription('Show a leaderboard of server points'),
+	execute: async function(interaction) {
+		/* Generate embed message for leaderboard */
+        const Points = interaction.client.bishop.db.models.points;
+        const botName = interaction.client.bishop.name;
+		const leaderboardEmbed = new EmbedBuilder()
+			.setColor(interaction.client.bishop.color)
+			.setTitle(`${botName} Points Leaderboard`)
+			.setDescription(`Top 10 points in the server`)
+			.setTimestamp()
+			.setFooter({
+				text: `Pulled using the ${botName} Bot`,
+				iconURL: interaction.user.displayAvatarURL({ dynamic: true }),
+			});
 
-    // Pull all tag entries
-    Points.findAll({
-      order: [["points", "DESC"]],
-      attributes: ["username", "points"],
-      limit: 10,
-    }).then((allUsers) => {
-      allUsers.forEach((element, index) => {
-        currentGame.addField(
-          `${index + 1}. ${element.dataValues["username"]}`,
-          element.dataValues["points"].toString()
-        );
-      });
-      interaction.reply({ embeds: [currentGame], ephemeral: true });
-    });
-  },
-};
+		// Pull all tag entries
+		Points.findAll({
+			order: [['points', 'DESC']],
+			attributes: ['userId', 'points'],
+			limit: 10,
+		}).then((allUsers) => {
+            const pointObj = {};
+
+            allUsers.forEach((e, i) => {
+                leaderboardEmbed.addFields(
+                    {
+                        name: `${i + 1}. ${interaction.client.users.cache.get(e.userId).username}`,
+                        value: `${e.points} points`
+                    }
+                )
+            });
+
+			return interaction.reply({ embeds: [leaderboardEmbed], ephemeral: true });
+		});
+	},
+});
