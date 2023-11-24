@@ -12,8 +12,7 @@
         "viewPoints.js": true
     },
     "events": {
-        "addUserPoints.js": true,
-        "checkRolesExist.js": true
+        "addUserPoints.js": true
     },
     "jobs": {
         "addDailyPoints.js": true
