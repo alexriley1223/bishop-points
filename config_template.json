@@ -13,7 +13,7 @@
     },
     "events": {
         "addUserPoints.js": true,
-        "checkUserRank.js": true
+        "checkRolesExist.js": true
     },
     "jobs": {
         "addDailyPoints.js": true
