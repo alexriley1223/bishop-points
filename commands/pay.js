@@ -1,67 +1,82 @@
-const { SlashCommandBuilder } = require("@discordjs/builders");
-const Sequelize = require("sequelize");
-const sequelize = require("@database/database.js")(Sequelize);
-const Points = require("@models/userPoints.js")(sequelize, Sequelize.DataTypes);
+const BishopCommand = require('@classes/BishopCommand');
+const { SlashCommandBuilder } = require('@discordjs/builders');
+const { getParentDirectoryString } = require('@helpers/utils');
+const { commands } = require('../config.json');
 
-module.exports = {
-  data: new SlashCommandBuilder()
-    .setName("pay")
-    .setDescription("Pay another user with your points")
-    .addUserOption((option) =>
-      option.setName("user").setDescription("User to pay").setRequired(true)
-    )
-    .addIntegerOption((option) =>
-      option.setName("amount").setDescription("Amount to Pay").setRequired(true)
-    ),
-  async execute(interaction) {
-    const userReceive = interaction.options.getUser("user");
-    const amount = interaction.options.getInteger("amount");
-    const userGive = interaction.user.id;
+module.exports = new BishopCommand({
+	enabled: commands[getParentDirectoryString(__filename, __dirname)],
+	data: new SlashCommandBuilder()
+        .setName('pay')
+        .setDescription('Pay another user with your points')
+        .addUserOption((option) =>
+            option.setName('user').setDescription('User to pay').setRequired(true),
+        )
+        .addIntegerOption((option) =>
+            option.setName('amount').setDescription('Amount to Pay').setRequired(true),
+        ),
+	execute: async function(interaction) {
+		const userToReceivePoints = interaction.options.getUser('user');
+		const amountToGive = interaction.options.getInteger('amount');
+		const userGivingPoints = interaction.user;
+        const Points = interaction.client.bishop.db.models.points;
+        const PointsHistories = interaction.client.bishop.db.models.points_histories;
 
-    // Check if points are less than or equal to 0
-    if (amount <= 0) {
-      interaction.reply({ content: "Cannot pay 0 or less than 0 points.", ephemeral: true });
-      return;
-    }
+		if (amountToGive <= 0) {
+			interaction.reply({ content: 'Cannot pay 0 or less than 0 points.', ephemeral: true });
+			return;
+		}
 
-    // Check if userReceive exists
-    await Points.findOne({
-      where: {
-        user: userReceive.id,
-      },
-    }).then(function (user) {
-      if (!user) {
-        interaction.reply({
-          content: `Unable to find user: ${userReceive.username}.`,
-          ephemeral: true,
+        if(userToReceivePoints.id === userGivingPoints.id) {
+            await interaction.reply({
+                content: `You cannot pay yourself.`,
+                ephemeral: true,
+            });
+        }
+
+        const userToReceivePointsRecord = await Points.findOne({
+            where: {
+                userId: userToReceivePoints.id
+            }
         });
-        return;
-      }
-    });
 
-    // Check if userGive has enough points
-    await Points.findOne({
-      where: {
-        user: userGive,
-      },
-    }).then(function (user) {
-      if (user && user.points >= amount) {
-        // Update userReceive points
-        Points.increment("points", { by: amount, where: { user: userReceive.id } });
-
-        // Update userGive points
-        Points.increment("points", { by: -amount, where: { user: userGive } });
-
-        interaction.reply({
-          content: `${amount} points paid to ${userReceive.username}!`,
-          ephemeral: true,
+        const userGivingPointsRecord = await Points.findOne({
+            where: {
+                userId: userGivingPoints.id
+            }
         });
-      } else {
-        interaction.reply({
-          content: `You do not have enough points to pay ${userReceive.username}.`,
-          ephemeral: true,
+
+        if(!userToReceivePointsRecord || !userGivingPointsRecord) {
+            await interaction.reply({
+                content: `You or the user you are attempting to give points to do not have a Points record.`,
+                ephemeral: true,
+            });
+        }
+
+        if(userGivingPointsRecord.points < amountToGive) {
+            await interaction.reply({
+                content: `You do not have enough points to pay ${userToReceivePoints.username}.`,
+                ephemeral: true,
+            });
+        }
+
+        await Points.increment('points', { by: amountToGive, where: { userId: userToReceivePoints.id }});
+        await Points.increment('points', { by: -amountToGive, where: { userId: userGivingPoints.id }});
+        await PointsHistories.bulkCreate([
+            {
+                userId: userToReceivePoints.id,
+                points: amountToGive,
+                source: 'pay'
+            },
+            {
+                userId: userGivingPoints.id,
+                points: -amountToGive,
+                source: 'pay'
+            }
+        ]);
+
+        await interaction.reply({
+            content: `${amountToGive} points paid to ${userToReceivePoints.username}!`,
+            ephemeral: true,
         });
-      }
-    });
-  },
-};
+	},
+});

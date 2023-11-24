@@ -1,70 +1,118 @@
-const Sequelize = require("sequelize");
-const sequelize = require("@database/database.js")(Sequelize);
-const Points = require("@models/userPoints.js")(sequelize, Sequelize.DataTypes);
-const { afkChannelId } = require("@config/channels.json");
-const modules = require("@config/modules.json");
+const BishopModuleEvent = require('@classes/BishopModuleEvent');
+const { exemptPointChannels } = require('../config.json');
+const { getParentDirectoryString } = require('@helpers/utils');
+const { events } = require('../config.json');
+const checkAndAssignUserRank = require('../helpers/checkAndAssignUserRank');
+const { useRoles } = require('../roles.json');
 
-module.exports = {
-  name: "voiceStateUpdate",
-  execute(oldState, newState) {
-    const Sequelize = require("sequelize");
+module.exports = new BishopModuleEvent({
+    name: 'voiceStateUpdate',
+    enabled: events[getParentDirectoryString(__filename, __dirname, 'events')],
+    init: async (client, ...opt) => {
+        const oldState = opt[0];
+        const newState = opt[1];
+        const userName = newState.member.user.username;
+        const userId = newState.member.user.id;
 
-    /* Check the user is not a bot */
-    if (!newState.member.user.bot && modules.points) {
-      // Define member id
-      const id = newState.id.toString();
-      const username = newState.member.user.username;
+        const PointsHistories = client.bishop.db.models.points_histories;
+        const Points = client.bishop.db.models.points;
+        const PointsLastJoins = client.bishop.db.models.points_last_joins;
 
-      /* User is joining a main channel for the first time */
-      /* User joins other channel from AFK Channel */
-      if (
-        (oldState.channelId == null && newState.channelId !== afkChannelId) ||
-        (oldState.channelId == afkChannelId && newState.channelId !== null)
-      ) {
-        var date = Date.now();
+        /* Bot Check */
+        if (oldState.member.user.bot || newState.member.user.bot) {
+            return;
+        }
 
-        // Add record or update record
-        Points.upsert(
-          {
-            user: id,
-            username: username,
-            lastJoin: date,
-          },
-          { user: id }
-        ).then(function () {
-          console.log(`User ${id} created or already existing.`);
-        });
-      }
+        const date = Date.now();
 
-      /* User joins AFK channel from base */
-      /* User has fully disconnected from a main channel */
-      if (
-        (oldState.channelId !== null && newState.channelId == afkChannelId) ||
-        (oldState.channelId !== afkChannelId && newState.channelId == null)
-      ) {
-        // Update point values to stop point tracking
-        var date = Date.now();
+        /* Exempt Channel Check */
+        if(exemptPointChannels.length > 0) {
+            
+            /* Leaving from an exempt channel and disconnect - don't do anything*/
+            if(exemptPointChannels.includes(oldState.channelId) && newState.channelId == null) {
+                return;
+            } 
 
-        Points.findOne({
-          where: {
-            user: id,
-          },
-        }).then(function (user) {
-          if (user) {
-            const oldTime = user.lastJoin;
-            const newTime = Date.now();
-            let points = user.points;
+            /* Joins a channel that isn't exempt OR joins from an exempt channel */
+            if( (oldState.channelId == null && !exemptPointChannels.includes(newState.channelId)) || (exemptPointChannels.includes(oldState.channelId) && newState.channelId !== null)) {
+                join(PointsLastJoins, userId, date);
+            }
 
-            // points += Math.floor((newTime-oldTime)/1000); // seconds
-            points += Math.floor((newTime - oldTime) / 1000 / 60); // minutes
+            /* Joins AFK or fully disconnects */
+            if( (oldState.channelId !== null && exemptPointChannels.includes(newState.channelId)) || (!exemptPointChannels.includes(newState.channelId) && newState.channelId == null)) {
+                await leave(PointsLastJoins, Points, PointsHistories, userId, date, userName, client);
+            }
 
-            // Add onto the current points the user has
-            Points.update({ points: points }, { where: { user: id } });
+        } else {
+            /* No AFK Channel - no checks needed */
+            /* Joining Channel */
+            if(oldState.channelId == null && newState.channelId !== null) {
+                join(PointsLastJoins, userId, date);
+            }
 
-            console.log(`Points updated for ${id}.`);
-          }
-        });
-      }
-    }
-  },
-};
+            /* Leaving Channel - No other channel */
+            if(oldState.channelId !== null && newState.channelId == null) {
+                // Record point total
+                await leave(PointsLastJoins, Points, PointsHistories, userId, date, userName, client);
+            }
+        }
+    },
+});
+
+/* Fires whenever a valid join occurs - record a points_last_joins record */
+async function join(PointsLastJoins, userId, date) {
+    PointsLastJoins.upsert(
+        {
+            userId: userId,
+            lastJoin: date
+        }
+    );
+}
+
+/* Fires whenever a valid leave occurs - tally up points */
+async function leave(PointsLastJoins, Points, PointsHistories, userId, date, userName, client) {
+    PointsLastJoins.findOne({
+        where: {
+            userId: userId,
+        },
+    }).then(async function(lastJoin) {
+        if (lastJoin) {
+            const oldTime = lastJoin.lastJoin;
+            const calcPoints = Math.floor((date - oldTime) / 1000 / 60);
+
+            if(calcPoints > 0) {
+                const pointsEntry = await Points.findOne({ where: { userId: userId }});
+                if(pointsEntry) {
+                    /* Update User Points */
+                    await Points.update({ points: Math.floor(pointsEntry.points + calcPoints) }, {
+                        where: {
+                            userId: userId
+                        }
+                    });   
+                } else {
+                    await Points.create({
+                        userId: userId,
+                        username: userName,
+                        points: calcPoints
+                    });
+                }
+
+                /* Add points history record */
+                await PointsHistories.create({
+                    userId: userId,
+                    points: calcPoints,
+                    source: 'voice'
+                });
+
+                client.bishop.logger.info(
+                    'POINTS',
+                    `Point change of ${calcPoints} for ${userName}.`,
+                );
+
+                if(useRoles) {
+                    checkAndAssignUserRank(client, userId, pointsEntry ? Math.floor(pointsEntry.points + calcPoints) : calcPoints);
+                }
+            }
+        }
+    });
+}

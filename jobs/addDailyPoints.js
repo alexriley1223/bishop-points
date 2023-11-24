@@ -1,24 +1,46 @@
-const cron = require("cron");
+const CronJob = require('cron').CronJob;
+const { getParentDirectoryString } = require('@helpers/utils');
+const { jobs } = require('../config.json');
+const BishopJob = require('@classes/BishopJob');
 
-module.exports = (Points, client, sequelize) => {
-  // Make cron job for adding in weekly points
-  // 0 12 * * *
-  const addRandomPointsDaily = new cron.CronJob("0 12 * * *", () => {
-    Points.findAll({ order: sequelize.random(), limit: 1 }).then(function (user) {
-      // Generate random points and calculated point value
-      const randPoints = Math.floor(Math.random() * (30 - 10) + 10);
-      const points = user[0].points + randPoints;
+module.exports = new BishopJob({
+	enabled: jobs[getParentDirectoryString(__filename, __dirname, 'jobs')],
+	init: async function(client) {
+		new CronJob(
+			'0 12 * * *',
+			async function() {
 
-      // Add onto the current points the user has
-      Points.update({ points: points }, { where: { user: user[0].user } });
+        const randPoints = Math.floor(Math.random() * (30 - 10) + 10);
+        const Points = client.bishop.db.models.points;
+        const PointsHistories = client.bishop.db.models.points_histories;
 
-      // Send @ message in announcements channel
-      // Temp disable sending in announcements channel
-      // client.channels.cache.get(announcementsChannelId).send(`Congrats <@${user[0].user}>! You have won ${randPoints} points for today's free points raffle! 👏🏻`);
+        await Points.findOne({ order: client.bishop.db.random() }).then(async function (user) {
+          const userPoints = Math.floor(user.points + randPoints);
+        
+          await Points.update({ points: userPoints }, {
+            where: {
+                userId: user.userId
+            }
+          });  
 
-      console.log(`RAFFLE: Adding ${randPoints} points to ${user[0].username}.`);
-    });
-  });
-
-  return addRandomPointsDaily.start();
-};
+          await PointsHistories.create({
+            userId: user.userId,
+            points: randPoints,
+            source: 'daily_points'
+          });
+    
+          // Send @ message in announcements channel
+          // client.channels.cache.get(announcementsChannelId).send(`Congrats <@${user[0].user}>! You have won ${randPoints} points for today's free points raffle! 👏🏻`);
+    
+          client.bishop.logger.info(
+            'POINTS',
+            `Point change of ${randPoints} for ${user.username}.`,
+          );
+        });
+    
+			},
+			null,
+			true,
+			'America/Indianapolis');
+	},
+});

@@ -1,5 +1,21 @@
 {
-    "gameUpdatesChannelId": "",
-    "announcementsChannelId": "",
-    "afkChannelId": ""
+    "isModuleEnabled": true,
+    "exemptPointChannels": [
+        ""
+    ],
+    "commands": {
+        "admin/modifyPoints.js": true,
+        "roles.js": true,
+        "leaderboard.js": true,
+        "pay.js": true,
+        "points.js": true,
+        "viewPoints.js": true
+    },
+    "events": {
+        "addUserPoints.js": true,
+        "checkUserRank.js": true
+    },
+    "jobs": {
+        "addDailyPoints.js": true
+    }
 }

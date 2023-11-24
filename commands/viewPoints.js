@@ -1,37 +1,33 @@
-const { SlashCommandBuilder } = require("@discordjs/builders");
-const Sequelize = require("sequelize");
-const sequelize = require("@database/database.js")(Sequelize);
-const Points = require("@models/userPoints.js")(sequelize, Sequelize.DataTypes);
+const BishopCommand = require('@classes/BishopCommand');
+const { SlashCommandBuilder } = require('@discordjs/builders');
+const { getParentDirectoryString } = require('@helpers/utils');
+const { commands } = require('../config.json');
 
-module.exports = {
-  data: new SlashCommandBuilder()
-    .setName("viewpoints")
-    .setDescription("View any user's points, by username")
-    .addUserOption((option) =>
-      option.setName("user").setDescription("User to view points of").setRequired(true)
-    ),
-  async execute(interaction) {
-    const viewUser = interaction.options.getUser("user");
-    let userPoints = 0;
+module.exports = new BishopCommand({
+	enabled: commands[getParentDirectoryString(__filename, __dirname)],
+	data: new SlashCommandBuilder()
+		.setName('viewpoints')
+		.setDescription('View current points of a user')
+        .addUserOption((opt) => opt.setName('user').setDescription('User to view points of').setRequired(true)),
+	execute: async function(interaction) {
+		const userToView = interaction.options.getUser('user');
+        const Points = interaction.client.bishop.db.models.points;
+        const userPointsRecord = await Points.findOne({
+            where: {
+                userId: userToView.id
+            }
+        });
 
-    // Find user record by id and set user points value
-    await Points.findOne({
-      where: {
-        user: viewUser.id,
-      },
-    }).then(function (user) {
-      if (user) {
-        userPoints = user.points;
-        interaction.reply({
-          content: `${viewUser.username} currently has ${userPoints} points!`,
-          ephemeral: true,
-        });
-      } else {
-        interaction.reply({
-          content: `Unable to find user: ${viewUser.username}.`,
-          ephemeral: true,
-        });
-      }
-    });
-  },
-};
+        if(userPointsRecord) {
+            await interaction.reply({
+                content: `${userToView.username} currently has ${userPointsRecord.points} points!`,
+                ephemeral: true,
+            });
+        } else {
+            await interaction.reply({
+                content: `Unable to find points for ${userToView.username}.`,
+                ephemeral: true,
+            });
+        }
+	},
+});
