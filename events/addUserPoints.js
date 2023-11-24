@@ -3,6 +3,7 @@ const { exemptPointChannels } = require('../config.json');
 const { getParentDirectoryString } = require('@helpers/utils');
 const { events } = require('../config.json');
 const checkAndAssignUserRank = require('../helpers/checkAndAssignUserRank');
+const { useRoles } = require('../roles.json');
 
 module.exports = new BishopModuleEvent({
     name: 'voiceStateUpdate',
@@ -40,7 +41,6 @@ module.exports = new BishopModuleEvent({
             /* Joins AFK or fully disconnects */
             if( (oldState.channelId !== null && exemptPointChannels.includes(newState.channelId)) || (!exemptPointChannels.includes(newState.channelId) && newState.channelId == null)) {
                 await leave(PointsLastJoins, Points, PointsHistories, userId, date, userName, client);
-                await checkAndAssignUserRank();
             }
 
         } else {
@@ -54,7 +54,6 @@ module.exports = new BishopModuleEvent({
             if(oldState.channelId !== null && newState.channelId == null) {
                 // Record point total
                 await leave(PointsLastJoins, Points, PointsHistories, userId, date, userName, client);
-                await checkAndAssignUserRank();
             }
         }
     },
@@ -109,6 +108,10 @@ async function leave(PointsLastJoins, Points, PointsHistories, userId, date, use
                     'POINTS',
                     `Point change of ${calcPoints} for ${userName}.`,
                 );
+
+                if(useRoles) {
+                    checkAndAssignUserRank(client, userId, pointsEntry ? Math.floor(pointsEntry.points + calcPoints) : calcPoints);
+                }
             }
         }
     });

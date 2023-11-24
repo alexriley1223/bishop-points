@@ -2,7 +2,7 @@ const BishopCommand = require('@classes/BishopCommand');
 const { SlashCommandBuilder } = require('@discordjs/builders');
 const { getParentDirectoryString } = require('@helpers/utils');
 const { commands } = require('../config.json');
-const { EmbedBuilder, Embed } = require('discord.js');
+const { EmbedBuilder } = require('discord.js');
 
 module.exports = new BishopCommand({
 	enabled: commands[getParentDirectoryString(__filename, __dirname)],
@@ -16,7 +16,7 @@ module.exports = new BishopCommand({
 		const leaderboardEmbed = new EmbedBuilder()
 			.setColor(interaction.client.bishop.color)
 			.setTitle(`${botName} Points Leaderboard`)
-			.setDescription(`Top 10 points in the server`)
+			.setDescription(`Top 10 user points in the server`)
 			.setTimestamp()
 			.setFooter({
 				text: `Pulled using the ${botName} Bot`,
@@ -29,8 +29,6 @@ module.exports = new BishopCommand({
 			attributes: ['userId', 'points'],
 			limit: 10,
 		}).then((allUsers) => {
-            const pointObj = {};
-
             allUsers.forEach((e, i) => {
                 leaderboardEmbed.addFields(
                     {

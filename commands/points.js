@@ -13,7 +13,6 @@ module.exports = new BishopCommand({
         const Points = interaction.client.bishop.db.models.points;
 		let userPoints = 0;
 
-		// Find user record by id and set user points value
 		await Points.findOne({
 			where: {
 				userId: userId,
