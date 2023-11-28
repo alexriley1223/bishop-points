@@ -10,12 +10,13 @@
 	</p>
 </div>
 
-## Bishop Rust Item Shop
+## Bishop Points
 
 A module for the [Bishop Discord Bot](https://github.com/alexriley1223/bishop) that converts user voice activity time to points. These points can be exchanged or used in games.
 
 ### Requirements
 - Bishop Discord Bot
+- A Database (Flatfile Works)
 
 ### Installation
 1. Clone or download zip of repository and place in modules directory of the Bishop bot.
