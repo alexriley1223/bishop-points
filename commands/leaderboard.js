@@ -3,6 +3,7 @@ const { SlashCommandBuilder } = require('@discordjs/builders');
 const { getParentDirectoryString } = require('@helpers/utils');
 const { commands } = require('../config.json');
 const { EmbedBuilder } = require('discord.js');
+const { guildId } = require('@config/bot.json');
 
 module.exports = new BishopCommand({
 	enabled: commands[getParentDirectoryString(__filename, __dirname)],
@@ -13,6 +14,8 @@ module.exports = new BishopCommand({
 		/* Generate embed message for leaderboard */
         const Points = interaction.client.bishop.db.models.points;
         const botName = interaction.client.bishop.name;
+		const guild = interaction.client.guilds.cache.get(guildId);
+
 		const leaderboardEmbed = new EmbedBuilder()
 			.setColor(interaction.client.bishop.color)
 			.setTitle(`${botName} Points Leaderboard`)
@@ -30,9 +33,10 @@ module.exports = new BishopCommand({
 			limit: 10,
 		}).then((allUsers) => {
             allUsers.forEach((e, i) => {
+				const member = guild.members.cache.get(e.userId).user.username;
                 leaderboardEmbed.addFields(
                     {
-                        name: `${i + 1}. ${interaction.client.users.cache.get(e.userId).username}`,
+                        name: `${i + 1}. ${member}`,
                         value: `${e.points} points`
                     }
                 )
