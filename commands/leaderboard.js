@@ -27,19 +27,20 @@ module.exports = new BishopCommand({
 			});
 
 		// Pull all tag entries
-		Points.findAll({
+		await Points.findAll({
 			order: [['points', 'DESC']],
 			attributes: ['userId', 'points'],
 			limit: 10,
-		}).then((allUsers) => {
-            allUsers.forEach((e, i) => {
-				const member = guild.members.cache.get(e.userId).user.username;
-                leaderboardEmbed.addFields(
-                    {
-                        name: `${i + 1}. ${member}`,
-                        value: `${e.points} points`
-                    }
-                )
+		}).then(async (allUsers) => {
+            await allUsers.forEach((e, i) => {
+				guild.members.fetch(e.userId).then((member) => {
+					leaderboardEmbed.addFields(
+						{
+							name: `${i + 1}. ${member.user.username}`,
+							value: `${e.points} points`
+						}
+					)
+				});
             });
 
 			return interaction.reply({ embeds: [leaderboardEmbed], ephemeral: true });
