@@ -15,12 +15,10 @@ module.exports = async (client, userId, points) => {
         }
     });
 
-    if(!memberRoles.find(u => u.id === eligibleRole.id)) {
-        // Add all roles up to eligible role
-        validRoles.forEach((r) => {
-            if(!memberRoles.find(s => s.id === r.id)) {
-                member.roles.add(r.id);
-            }
-        });
-    }
+    // Add all roles up to eligible role
+    validRoles.forEach((r) => {
+        if(!memberRoles.find(s => s.id === r.id)) {
+            member.roles.add(r.id);
+        }
+    });
 };
